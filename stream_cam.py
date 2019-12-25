@@ -6,19 +6,29 @@
 
 import numpy as np
 
-
+# Camera Imports
 import cv2
 from picamera import PiCamera
 from picamera.array import PiRGBArray
 import time
 from datetime import datetime
- 
+
+# GPIO Imports
+import RPi.GPIO as GPIO
+
 # constants for tweaking
 WINDOW_NAME = "Recognition"
 SCALE_PERCENT = 20
-PIXEL_THRESHOLD = 500
+PIXEL_THRESHOLD = 200
 RANGE_PADDING = 20
 SHOW_OVERLAY = True
+
+# setup GPIO (https://pythonhosted.org/RPIO/)
+VALVE_PIN=18
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(VALVE_PIN, GPIO.OUT)
+GPIO.output(VALVE_PIN, GPIO.HIGH)
+
 
 # Setup the display window
 if(SHOW_OVERLAY):
@@ -62,6 +72,8 @@ red_data = [
         [177, 160, 143], # middle
         [179, 178, 122], # bottom left
         [179, 165, 142], # bottom right
+        [179, 40, 40], # force low
+        [179, 230, 230], # force high 
         ]
 # print("Red")
 red_lower, red_upper = find_sane_bounds(red_data)
@@ -74,6 +86,8 @@ yellow_data = [
         [ 20, 140, 208], # middle
         [ 17, 171, 149], # bottom left
         [ 20, 139, 207], # bottom right
+        [ 20,  40, 40], # force low
+        [ 20, 230, 230], # force high 
         ]
 # print("Yellow")
 yellow_lower, yellow_upper = find_sane_bounds(yellow_data)
@@ -101,9 +115,12 @@ with PiCamera(
         resolution = (160,96),       # default (10% of full resolution of 1600x900)
         framerate = 10,              # 10 fps, default is 30
         sensor_mode = 5) as camera:  # default=1, 5 is full FOV with 2x2 binning
-    camera.awb_mode = 'off'          # turn off AWB because I will control lighting
-    camera.awb_gains = 1.1           # Set constant AWB (tuple for red and blue, or constant)
+    #camera.awb_mode = 'off'          # turn off AWB because I will control lighting
+    camera.awb_gains = (1.184,2.969) # Set constant AWB (tuple for red and blue, or constant)
+    time.sleep(2)
     print("Camera setup complete.")
+    print(f"AWB Gains are {camera.awb_gains}")
+    time.sleep(3)
 
     # Setup the buffer into which we'll capture the images
     cam_image = PiRGBArray(camera)
@@ -153,6 +170,7 @@ with PiCamera(
         #  I think I have a part, so pick the part's color based on the dominant color 
         #  I see.  This should help when I have multi-colored parts.
         if(sum(all_pixel_counts) > PIXEL_THRESHOLD):
+            GPIO.output(VALVE_PIN, GPIO.LOW)
             if(red_pixels == max(all_pixel_counts)):
                 print("RED RECOGNIZED!")
             elif(yellow_pixels == max(all_pixel_counts)):
@@ -161,6 +179,9 @@ with PiCamera(
                 print("BROWN RECOGNIZED!")
             else:
                 print("RECOGNITION FAILURE :_(")
+        else:
+            GPIO.output(VALVE_PIN, GPIO.HIGH)
+
         if(SHOW_OVERLAY):
             image[red_indices[0], red_indices[1], :] = [0,0,255]
             image[yellow_indices[0], yellow_indices[1], :] = [0,255,255]
