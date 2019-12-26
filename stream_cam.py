@@ -12,6 +12,7 @@ from picamera import PiCamera
 from picamera.array import PiRGBArray
 import time
 from datetime import datetime
+import os
 
 # GPIO Imports
 import RPi.GPIO as GPIO
@@ -19,9 +20,10 @@ import RPi.GPIO as GPIO
 # constants for tweaking
 WINDOW_NAME = "Recognition"
 SCALE_PERCENT = 20
-PIXEL_THRESHOLD = 200
-RANGE_PADDING = 20
+PIXEL_THRESHOLD = 50
+RANGE_PADDING = 10
 SHOW_OVERLAY = True
+COLOR_COLUMN_WIDTH=10
 
 # setup GPIO (https://pythonhosted.org/RPIO/)
 VALVE_PIN=18
@@ -29,6 +31,51 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(VALVE_PIN, GPIO.OUT)
 GPIO.output(VALVE_PIN, GPIO.HIGH)
 
+
+# Detection box location
+XMIN=16
+XMAX=85
+YMIN=96
+YMAX=121
+SHOW_BOX=True
+
+
+class Lego:
+    name="undefined"
+    upper_hsv=[0, 0, 0]
+    lower_hsv=[0, 0, 0]
+    display_bgr=[0,0,0]
+    recognition_mask=[]
+    recognition_indices=[]
+    pixel_count=0
+    jet_number=-1  #default to no jet assigned
+    
+    def __init__(self, name, lowerhsv, upperhsv, display_color):
+        self.name = name
+        self.upper_hsv = upperhsv
+        self.lower_hsv = lowerhsv
+        self.display_bgr = display_color
+
+
+    def recognize_at(self, image, minpoint, maxpoint):
+        print(self.name)
+        # Super simple approach:
+        # inside a specific box, count the number of pixels I think are each color 
+        self.recognition_mask = cv2.inRange(
+            image, 
+            np.array(self.lower_hsv), 
+            np.array(self.upper_hsv))
+
+        # find where the masks found the colors
+        # (making a trade-off here because I'm doing recognition on the whole image, 
+        #    then only paring down here)
+        self.recognition_indices = np.where(
+                self.recognition_mask[minpoint[0]:maxpoint[0], # XMIN:XMAX 
+                    minpoint[1]:maxpoint[1]] > 0) # YMIN: YMAX
+
+        # todo: we should be able to filter out less-contiguous pixels (this would be a particle filter?)
+        self.pixel_count = self.recognition_indices[0].size
+        print(self.pixel_count)
 
 # Setup the display window
 if(SHOW_OVERLAY):
@@ -51,61 +98,56 @@ def find_sane_bounds(data, range_padding = RANGE_PADDING):
     # print(f"Range found: {lower} | {upper}  (padded by {range_padding})")
     return lower,upper
 
-# HSV's
-# BROWN
-brown_data = [
-        [  9,  56,  32],
-        [ 12,  47,  45],
-        [  7,  63,  31],
-        [ 10,  45,  49],
-        [  9,  67,  24],
-        [ 10,  50,  40]
-        ]
-# print("Brown")
-brown_lower, brown_upper = find_sane_bounds(brown_data)
+# Define things we want to recognize
+
+legos = []
+#Brown
+legos.append(
+        Lego(
+            'brown',
+            [  0, 140, 140], # lower HSV
+            [ 10, 255, 255], # upper HSV
+            (0, 25, 51)      # display color
+            )
+        )
 
 # RED
-red_data = [
-        # h    s    v
-        [178, 169, 137], # top left
-        [179, 135, 168], # top right
-        [177, 160, 143], # middle
-        [179, 178, 122], # bottom left
-        [179, 165, 142], # bottom right
-        [179, 40, 40], # force low
-        [179, 230, 230], # force high 
-        ]
-# print("Red")
-red_lower, red_upper = find_sane_bounds(red_data)
-
+legos.append(
+        Lego(
+            'red',
+            [169,  90, 140], # force low
+            [199, 255, 255], # force high 
+            (0, 0, 255)      # bgr display color
+            )
+        )
 # YELLOW
-yellow_data = [
-        # h    s    v
-        [ 19, 151, 194], # top left
-        [ 20, 128, 220], # top right
-        [ 20, 140, 208], # middle
-        [ 17, 171, 149], # bottom left
-        [ 20, 139, 207], # bottom right
-        [ 20,  40, 40], # force low
-        [ 20, 230, 230], # force high 
-        ]
-# print("Yellow")
-yellow_lower, yellow_upper = find_sane_bounds(yellow_data)
+legos.append(
+        Lego(
+            'yellow',
+            [ 10,  30, 140], # force low
+            [ 35, 240, 255], # force high 
+            (0,255,255)      # bgr display color
+            )
+        )
 
-# this is a constant for now, but todo: we should
-# pick a spot on the belt that won't have any pieces 
-# ever and use that to calibrate the belt color recognition 
-belt_data = [
-        # h    s    v
-        [ 11, 90, 48],  # top left
-        [  3, 53, 96],  # top right
-        [ 13,115, 20],  # center left
-        [  2, 55, 70],  # center right
-        [ 20,191,  4],  # bottom left
-        [  5, 85, 36]   # bottom right
-    ]
-# print("belt")
-find_sane_bounds(belt_data)
+# GREEN
+legos.append(
+        Lego(
+            'green',
+            [ 50,  30, 140], # force low
+            [ 77, 255, 255], # force high 
+            (0,255,0)        # bgr display color
+            )
+        )
+# WHITE
+legos.append(
+        Lego(
+            'white',
+            [ 0,  0, 150],  # force low
+            [ 255, 10, 255], # force high 
+            (255,255,255)   # bgr display color
+            )
+        )
 
 # Run the camera
 with PiCamera(
@@ -117,18 +159,18 @@ with PiCamera(
         sensor_mode = 5) as camera:  # default=1, 5 is full FOV with 2x2 binning
     #camera.awb_mode = 'off'          # turn off AWB because I will control lighting
     camera.awb_gains = (1.184,2.969) # Set constant AWB (tuple for red and blue, or constant)
-    time.sleep(2)
-    print("Camera setup complete.")
-    print(f"AWB Gains are {camera.awb_gains}")
-    time.sleep(3)
+    # time.sleep(2)
+    print("{datetime.now()} Camera setup complete.")
+    print(f"{datetime.now()} AWB Gains are {camera.awb_gains}")
+    # time.sleep(3)
 
     # Setup the buffer into which we'll capture the images
     cam_image = PiRGBArray(camera)
 
     # start the preview window in the top left corner
-    camera.start_preview(resolution=(160,96),window=(100,100,320,192), fullscreen=False)
-    camera.preview_alpha = 150
-    print("Camera preview started")
+    camera.start_preview(resolution=(160,96),window=(40,40,320,192), fullscreen=False)
+    camera.preview_alpha = 200
+    print("{datetime.now()} Camera preview started")
 
     # continuously capture files
     last_loop_time = time.time()
@@ -139,29 +181,32 @@ with PiCamera(
                                resize = None         # resolution was specified above
                                )): 
 
+        # clear the screen
+        os.system('clear')
+
         # load the image
         image = cam_image.array.copy()
         image_hsv = cv2.cvtColor(image,cv2.COLOR_BGR2HSV)
 
 
-        # Super simple approach:
-        #
-        # inside a specific box, count the number of pixels I think are each color 
-        red_mask = cv2.inRange(image_hsv, np.array(red_lower), np.array(red_upper))
-        brown_mask = cv2.inRange(image_hsv, np.array(brown_lower), np.array(brown_upper))
-        yellow_mask = cv2.inRange(image_hsv, np.array(yellow_lower), np.array(yellow_upper))
+        # Run recognition on the same image for each lego type
+        for lego in legos:
+            lego.recognize_at(image, (XMIN,YMIN), (XMAX,YMAX))
 
-        # find where the masks found the colors
-        red_indices = np.where(red_mask > 0)
-        yellow_indices = np.where(yellow_mask > 0)
-        brown_indices = np.where(brown_mask > 0)
+        all_pixel_counts = 0
+        for lego in legos:
+            all_pixel_counts += lego.pixel_count
 
-        # todo: we should be able to filter out less-contiguous pixels (this would be a particle filter?)
-        red_pixels = red_indices[0].size
-        yellow_pixels = yellow_indices[0].size
-        brown_pixels = brown_indices[0].size
-        all_pixel_counts = [red_pixels, yellow_pixels, brown_pixels]
-        print(f"Pixel counts: red: {red_indices[0].size} yellow: {yellow_indices[0].size} brown: {brown_indices[0].size}")
+        print(f"{datetime.now()} {all_pixel_counts} Pixels detected")
+        print_string=""
+        for lego in legos:
+            print_string += f"{lego.name:^{COLOR_COLUMN_WIDTH}}|"
+        print(print_string)
+        print_string=""
+        for lego in legos:
+            print_string += f"{lego.pixel_count:^{COLOR_COLUMN_WIDTH}}|"
+        print(print_string)
+
 
         # If the total number of non-background pixels are below a certain threshold
         #  do nothing
@@ -169,30 +214,31 @@ with PiCamera(
         # If the total number of non-background pixels are above a certain threshold
         #  I think I have a part, so pick the part's color based on the dominant color 
         #  I see.  This should help when I have multi-colored parts.
-        if(sum(all_pixel_counts) > PIXEL_THRESHOLD):
+        if(all_pixel_counts > PIXEL_THRESHOLD):
             GPIO.output(VALVE_PIN, GPIO.LOW)
-            if(red_pixels == max(all_pixel_counts)):
-                print("RED RECOGNIZED!")
-            elif(yellow_pixels == max(all_pixel_counts)):
-                print("YELLOW RECOGNIZED!")
-            elif(brown_pixels == max(all_pixel_counts)):
-                print("BROWN RECOGNIZED!")
-            else:
-                print("RECOGNITION FAILURE :_(")
+            max_pixels = 0
+            detection_name = ""
+            for lego in legos:
+                if lego.pixel_count > max_pixels:
+                    max_pixels = lego.pixel_count
+                    detection_name = lego.name
+            print(f"{lego.name} RECOGNIZED!")
         else:
             GPIO.output(VALVE_PIN, GPIO.HIGH)
 
+
+        if(SHOW_BOX):
+            cv2.rectangle(image, (YMIN, XMIN), (YMAX, XMAX), (0,255,0), 1)
+
         if(SHOW_OVERLAY):
-            image[red_indices[0], red_indices[1], :] = [0,0,255]
-            image[yellow_indices[0], yellow_indices[1], :] = [0,255,255]
-            image[brown_indices[0], brown_indices[1], :] = [0,25,51]
+            for lego in legos:
+                image[lego.recognition_indices[0]+XMIN, lego.recognition_indices[1]+YMIN] = lego.display_bgr
             cv2.imshow(WINDOW_NAME, image)
             cv2.waitKey(1)
 
-
         # display the loop speed
         now_time=int(round(time.time() * 1000))
-        print(f"{datetime.now()} : Loop [{i}] completed in {now_time-last_loop_time}ms")
+        print(f"Loop [{i}] completed in {now_time-last_loop_time}ms")
         last_loop_time =now_time
 
         # clear the buffers for the image

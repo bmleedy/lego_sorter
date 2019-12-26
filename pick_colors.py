@@ -2,8 +2,8 @@ import numpy as np
 import cv2
 
 WINDOW_NAME = "Pick_a_point"
-
-orig_image = cv2.imread("yellow.jpg")
+FONT_MULTIPLIER = 0.5
+orig_image = cv2.imread("test.jpg")
 
 # Args: event, x, y, flags, userdata)
 def pick_point(event, x, y, flags, userdata):
@@ -16,10 +16,39 @@ def pick_point(event, x, y, flags, userdata):
     s = hsv[1]
     v = hsv[2]
 
-    cv2.putText(image,f"hue: {h}", (25,120) , cv2.FONT_HERSHEY_SIMPLEX, 4, (0,255,0), 5,8, False )
-    cv2.putText(image,f"sat: {s}", (25,240) , cv2.FONT_HERSHEY_SIMPLEX, 4, (0,255,0), 5,8, False )
-    cv2.putText(image,f"val: {v}", (25,360) , cv2.FONT_HERSHEY_SIMPLEX, 4, (0,255,0), 5,8, False )
-    cv2.putText(image,f"X: {x}  Y:  {y}", (25, 480), cv2.FONT_HERSHEY_SIMPLEX, 4, (0,2550), 5, 8, False)
+    cv2.putText(
+            image,f"hue: {h}", 
+            (int(round(6*FONT_MULTIPLIER)), int(round(30*FONT_MULTIPLIER))),
+            cv2.FONT_HERSHEY_SIMPLEX, 
+            FONT_MULTIPLIER,
+            (0,255,0),
+            int(round(2.5*FONT_MULTIPLIER)),
+            8,
+            False)
+    cv2.putText(image,f"sat: {s}",
+            (int(round(6*FONT_MULTIPLIER)), int(round(2*30*FONT_MULTIPLIER))),
+            cv2.FONT_HERSHEY_SIMPLEX, 
+            FONT_MULTIPLIER,
+            (0,255,0),
+            int(round(2.5*FONT_MULTIPLIER)),
+            8,
+            False)
+    cv2.putText(image,f"val: {v}",
+            (int(round(6*FONT_MULTIPLIER)), int(round(3*30*FONT_MULTIPLIER))),
+            cv2.FONT_HERSHEY_SIMPLEX, 
+            FONT_MULTIPLIER,
+            (0,255,0),
+            int(round(2.5*FONT_MULTIPLIER)),
+            8,
+            False)
+    cv2.putText(image,f"X: {x}  Y:  {y}",
+            (int(round(6*FONT_MULTIPLIER)), int(round(4*30*FONT_MULTIPLIER))),
+            cv2.FONT_HERSHEY_SIMPLEX, 
+            FONT_MULTIPLIER,
+            (0,255,0),
+            int(round(2.5*FONT_MULTIPLIER)),
+            8,
+            False)
     
     cv2.imshow(WINDOW_NAME, image)
 
