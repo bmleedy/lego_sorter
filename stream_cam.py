@@ -33,7 +33,7 @@ GPIO.output(VALVE_PIN, GPIO.HIGH)
 
 
 # Detection box location
-XMIN=16
+XMIN=36
 XMAX=85
 YMIN=96
 YMAX=121
@@ -58,7 +58,6 @@ class Lego:
 
 
     def recognize_at(self, image, minpoint, maxpoint):
-        print(self.name)
         # Super simple approach:
         # inside a specific box, count the number of pixels I think are each color 
         self.recognition_mask = cv2.inRange(
@@ -75,28 +74,12 @@ class Lego:
 
         # todo: we should be able to filter out less-contiguous pixels (this would be a particle filter?)
         self.pixel_count = self.recognition_indices[0].size
-        print(self.pixel_count)
+        # print(f"{self.name} found {self.pixel_count}")
 
 # Setup the display window
 if(SHOW_OVERLAY):
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(WINDOW_NAME, 800,800)
-
-# Use data to find bounds for detecting colors
-def find_sane_bounds(data, range_padding = RANGE_PADDING):
-    lower = data[0].copy()
-    upper = data[0].copy()
-    for hsvpoint in data:
-        # print(f"--Range found: {lower} | {upper} | {hsvpoint}")
-        for i in range(3):
-            if((hsvpoint[i]+range_padding)  > upper[i]):
-                # print(f"{hsvpoint[i]} is greater than {upper[i]}")
-                upper[i] = hsvpoint[i]+range_padding
-            if((hsvpoint[i]-range_padding) < lower[i]):
-                # print(f"{hsvpoint[i]} is less than {lower[i]}")
-                lower[i] = hsvpoint[i]-range_padding
-    # print(f"Range found: {lower} | {upper}  (padded by {range_padding})")
-    return lower,upper
 
 # Define things we want to recognize
 
@@ -124,9 +107,18 @@ legos.append(
 legos.append(
         Lego(
             'yellow',
-            [ 10,  30, 140], # force low
+            [ 28,  75, 140], # force low
             [ 35, 240, 255], # force high 
             (0,255,255)      # bgr display color
+            )
+        )
+# Orange 
+legos.append(
+        Lego(
+            'orange',
+            [ 15,  75, 140], # force low
+            [ 27, 240, 255], # force high 
+            (0,165,255)      # bgr display color
             )
         )
 
@@ -134,8 +126,8 @@ legos.append(
 legos.append(
         Lego(
             'green',
-            [ 50,  30, 140], # force low
-            [ 77, 255, 255], # force high 
+            [ 60,  50, 100], # force low
+            [ 75, 255, 255], # force high 
             (0,255,0)        # bgr display color
             )
         )
@@ -143,12 +135,30 @@ legos.append(
 legos.append(
         Lego(
             'white',
-            [ 0,  0, 150],  # force low
+            [   0,  0, 150],  # force low
             [ 255, 10, 255], # force high 
             (255,255,255)   # bgr display color
             )
         )
+# Blue
+legos.append(
+        Lego(
+            'blue',
+            [ 93,  30, 100],  # force low
+            [103, 255, 255], # force high 
+            (255,0,0)   # bgr display color
+            )
+        )
 
+# Grey
+legos.append(
+        Lego(
+            'grey',
+            [  0,  11, 150],  # force low
+            [255,  50, 255], # force high 
+            (200, 200, 200)   # bgr display color
+            )
+        )
 # Run the camera
 with PiCamera(
         camera_num=0,                # default
@@ -191,7 +201,7 @@ with PiCamera(
 
         # Run recognition on the same image for each lego type
         for lego in legos:
-            lego.recognize_at(image, (XMIN,YMIN), (XMAX,YMAX))
+            lego.recognize_at(image_hsv, (XMIN,YMIN), (XMAX,YMAX))
 
         all_pixel_counts = 0
         for lego in legos:
@@ -214,28 +224,35 @@ with PiCamera(
         # If the total number of non-background pixels are above a certain threshold
         #  I think I have a part, so pick the part's color based on the dominant color 
         #  I see.  This should help when I have multi-colored parts.
+        detection_name = ""
+        detection_color= (0,0,0)
         if(all_pixel_counts > PIXEL_THRESHOLD):
             GPIO.output(VALVE_PIN, GPIO.LOW)
             max_pixels = 0
-            detection_name = ""
             for lego in legos:
                 if lego.pixel_count > max_pixels:
                     max_pixels = lego.pixel_count
                     detection_name = lego.name
-            print(f"{lego.name} RECOGNIZED!")
+                    detection_color= lego.display_bgr
+            print(f"{detection_name} RECOGNIZED! {max_pixels} pixels")
         else:
             GPIO.output(VALVE_PIN, GPIO.HIGH)
 
-
         if(SHOW_BOX):
-            cv2.rectangle(image, (YMIN, XMIN), (YMAX, XMAX), (0,255,0), 1)
+            cv2.rectangle(image, (YMIN, XMIN), (YMAX, XMAX), (0,0,0), 1)
 
         if(SHOW_OVERLAY):
             for lego in legos:
                 image[lego.recognition_indices[0]+XMIN, lego.recognition_indices[1]+YMIN] = lego.display_bgr
-            cv2.imshow(WINDOW_NAME, image)
+          #  if(detection_name != ""):
+            cv2.putText(image, f"{detection_name}", (2, 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,  # size multiplier
+                    detection_color,
+                    1,     # thickness
+                    False)
             cv2.waitKey(1)
-
+            cv2.imshow(WINDOW_NAME, image)
         # display the loop speed
         now_time=int(round(time.time() * 1000))
         print(f"Loop [{i}] completed in {now_time-last_loop_time}ms")
