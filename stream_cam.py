@@ -24,6 +24,8 @@ PIXEL_THRESHOLD = 50
 RANGE_PADDING = 10
 SHOW_OVERLAY = True
 COLOR_COLUMN_WIDTH=10
+OUTPUT_VIDEO = True
+VIDEO_NAME = "output.avi"
 
 # setup GPIO (https://pythonhosted.org/RPIO/)
 VALVE_PIN=18
@@ -177,6 +179,11 @@ with PiCamera(
     # Setup the buffer into which we'll capture the images
     cam_image = PiRGBArray(camera)
 
+    if(OUTPUT_VIDEO):
+        cap = cv2.VideoCapture(0)
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter('output.avi', fourcc, 10.0, (160,96))
+
     # start the preview window in the top left corner
     camera.start_preview(resolution=(160,96),window=(40,40,320,192), fullscreen=False)
     camera.preview_alpha = 200
@@ -253,6 +260,9 @@ with PiCamera(
                     False)
             cv2.waitKey(1)
             cv2.imshow(WINDOW_NAME, image)
+
+        if(OUTPUT_VIDEO):
+            out.write(image)
         # display the loop speed
         now_time=int(round(time.time() * 1000))
         print(f"Loop [{i}] completed in {now_time-last_loop_time}ms")
@@ -261,3 +271,5 @@ with PiCamera(
         # clear the buffers for the image
         cam_image.truncate(0)
     camera.stop_preview()
+    out.release()
+    cv2.destroyAllWindows()
