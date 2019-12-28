@@ -13,6 +13,7 @@ from picamera.array import PiRGBArray
 import time
 from datetime import datetime
 import os
+# todo: lintme
 
 # GPIO Imports
 import RPi.GPIO as GPIO
@@ -24,7 +25,7 @@ PIXEL_THRESHOLD = 50
 RANGE_PADDING = 10
 SHOW_OVERLAY = True
 COLOR_COLUMN_WIDTH=10
-OUTPUT_VIDEO = True
+OUTPUT_VIDEO = False
 VIDEO_NAME = "output.avi"
 
 # setup GPIO (https://pythonhosted.org/RPIO/)
@@ -41,6 +42,7 @@ YMIN=96
 YMAX=121
 SHOW_BOX=True
 
+# todo: fork data to a logfile in /var
 
 class Lego:
     name="undefined"
@@ -51,15 +53,17 @@ class Lego:
     recognition_indices=[]
     pixel_count=0
     jet_number=-1  #default to no jet assigned
+    recognition_box = [(0, 0), (0, 0)]  # (XMIN,YMIN),(XMAX,YMAX)
     
-    def __init__(self, name, lowerhsv, upperhsv, display_color):
+    def __init__(self, name, lowerhsv, upperhsv, display_bgr, recognition_box, jet_number=0):
         self.name = name
         self.upper_hsv = upperhsv
         self.lower_hsv = lowerhsv
-        self.display_bgr = display_color
+        self.display_bgr = display_bgr
+        self.recognition_box = recognition_box
+        self.jet_number = jet_number
 
-
-    def recognize_at(self, image, minpoint, maxpoint):
+    def recognize_at(self, image):
         # Super simple approach:
         # inside a specific box, count the number of pixels I think are each color 
         self.recognition_mask = cv2.inRange(
@@ -71,8 +75,8 @@ class Lego:
         # (making a trade-off here because I'm doing recognition on the whole image, 
         #    then only paring down here)
         self.recognition_indices = np.where(
-                self.recognition_mask[minpoint[0]:maxpoint[0], # XMIN:XMAX 
-                    minpoint[1]:maxpoint[1]] > 0) # YMIN: YMAX
+                self.recognition_mask[self.recognition_box[0][0]:self.recognition_box[1][0], # XMIN:XMAX 
+                    self.recognition_box[0][1]:self.recognition_box[1][1]] > 0) # YMIN: YMAX
 
         # todo: we should be able to filter out less-contiguous pixels (this would be a particle filter?)
         self.pixel_count = self.recognition_indices[0].size
@@ -83,84 +87,103 @@ if(SHOW_OVERLAY):
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(WINDOW_NAME, 800,800)
 
-# Define things we want to recognize
+# Define legos we want to recognize
 
 legos = []
 #Brown
 legos.append(
         Lego(
-            'brown',
-            [  0, 140, 140], # lower HSV
-            [ 10, 255, 255], # upper HSV
-            (0, 25, 51)      # display color
+            name='brown',
+            lowerhsv=[  0, 140, 140], # lower HSV threshold
+            upperhsv=[ 10, 255, 255], # upper HSV threshold
+            display_bgr=(0, 25, 51),   # display color
+            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
+            jet_number = 0
             )
         )
 
 # RED
 legos.append(
         Lego(
-            'red',
-            [169,  90, 140], # force low
-            [199, 255, 255], # force high 
-            (0, 0, 255)      # bgr display color
+            name='red',
+            lowerhsv=[169,  90, 140],  # lower HSV threshold
+            upperhsv=[199, 255, 255],  # upper HSV threshold
+            display_bgr=(0, 0, 255),    # bgr display color
+            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
+            jet_number = 0
             )
         )
 # YELLOW
 legos.append(
         Lego(
-            'yellow',
-            [ 28,  75, 140], # force low
-            [ 35, 240, 255], # force high 
-            (0,255,255)      # bgr display color
+            name='yellow',
+            lowerhsv=[ 28,  75, 140], # force low
+            upperhsv=[ 35, 240, 255], # force high 
+            display_bgr=(0,255,255),      # bgr display color
+            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
+            jet_number = 0
+            
             )
         )
 # Orange 
 legos.append(
         Lego(
-            'orange',
-            [ 15,  75, 140], # force low
-            [ 27, 240, 255], # force high 
-            (0,165,255)      # bgr display color
+            name='orange',
+            lowerhsv=[ 15,  75, 140], # force low
+            upperhsv=[ 27, 240, 255], # force high 
+            display_bgr=(0,165,255),      # bgr display color
+            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
+            jet_number = 0
             )
         )
 
 # GREEN
 legos.append(
         Lego(
-            'green',
-            [ 60,  50, 100], # force low
-            [ 75, 255, 255], # force high 
-            (0,255,0)        # bgr display color
+            name='green',
+            lowerhsv=[ 60,  50, 100], # force low
+            upperhsv=[ 75, 255, 255], # force high 
+            display_bgr=(0,255,0),        # bgr display color
+            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
+            jet_number = 0
             )
         )
 # WHITE
 legos.append(
         Lego(
-            'white',
-            [   0,  0, 150],  # force low
-            [ 255, 10, 255], # force high 
-            (255,255,255)   # bgr display color
+            name='white',
+            lowerhsv=[   0,  0, 150],  # force low
+            upperhsv=[ 255, 10, 255], # force high 
+            display_bgr=(255,255,255),   # bgr display color
+            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
+            jet_number = 0
             )
         )
 # Blue
 legos.append(
         Lego(
-            'blue',
-            [ 93,  30, 100],  # force low
-            [103, 255, 255], # force high 
-            (255,0,0)   # bgr display color
+            name='blue',
+            lowerhsv=[ 93,  30, 100],  # force low
+            upperhsv=[103, 255, 255], # force high 
+            display_bgr=(255,0,0),   # bgr display color
+            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
+            jet_number = 0
             )
         )
 
 # Grey
 legos.append(
         Lego(
-            'grey',
-            [  0,  11, 150],  # force low
-            [255,  50, 255], # force high 
-            (200, 200, 200)   # bgr display color
+            name='grey',
+            lowerhsv=[  0,  11, 150],  # force low
+            upperhsv=[255,  50, 255], # force high 
+            display_bgr=(200, 200, 200),   # bgr display color
+            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
+            jet_number = 0
             )
         )
+
+
 # Run the camera
 with PiCamera(
         camera_num=0,                # default
@@ -208,7 +231,7 @@ with PiCamera(
 
         # Run recognition on the same image for each lego type
         for lego in legos:
-            lego.recognize_at(image_hsv, (XMIN,YMIN), (XMAX,YMAX))
+            lego.recognize_at(image_hsv)
 
         all_pixel_counts = 0
         for lego in legos:
