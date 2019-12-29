@@ -64,6 +64,9 @@ SHOW_BOX = True
 
 # todo: fork data to a logfile in /var
 
+
+
+
 class Lego:
     """This is the class for a lego object which we want to detect"""
     name = "undefined"
@@ -116,18 +119,23 @@ if SHOW_OVERLAY:
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(WINDOW_NAME, 800, 800)
 
-# Define legos we want to recognize
+# Load legos we want to recognize
 legos = []
 with open('legos.config.json') as json_file:
     config = json.load(json_file)
     for lego_config in config:
-        print(lego_config)
         legos.append(
             Lego(
                 lconfig=lego_config,
                 recognition_box=[(XMIN, YMIN), (XMAX, YMAX)],
             )
         )
+
+# Load jets we want to use
+jets=[]
+with open('jets.config.json') as json_file:
+    jets = json.load(json_file)
+
 
 # Run the camera
 with PiCamera(
