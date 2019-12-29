@@ -1,0 +1,59 @@
+[
+	{
+	  "name":"brown",
+	  "lowerhsv":[0,140,140],
+	  "upperhsv":[10,255,255],
+	  "display_bgr":[0,25,51],
+	  "jet_number":0
+	},
+	{
+          "name":"red",
+          "lowerhsv":[169,  90, 140],
+          "upperhsv":[199, 255, 255],
+	  "display_bgr":[0, 0, 255],
+          "jet_number":0
+        },
+	{
+          "name":"yellow",
+          "lowerhsv":[ 28,  75, 140],
+          "upperhsv":[ 35, 240, 255], 
+          "display_bgr":[0,255,255],
+          "jet_number":0
+	},
+	{
+           "name":"orange",
+           "lowerhsv":[ 15,  75, 140], 
+           "upperhsv":[ 27, 240, 255], 
+           "display_bgr":[0,165,255],      
+           "jet_number": 0
+	},
+	{
+            "name":"green",
+            "lowerhsv":[ 60,  50, 100], 
+            "upperhsv":[ 75, 255, 255], 
+            "display_bgr":[0,255,0],        
+            "jet_number": 0
+	},
+	{
+            "name":"white",
+            "lowerhsv":[   0,  0, 150],  
+            "upperhsv":[ 255, 10, 255], 
+            "display_bgr":[255,255,255],   
+            "jet_number": 0
+
+	},
+	{
+            "name":"blue",
+            "lowerhsv":[ 93,  30, 100],  
+            "upperhsv":[103, 255, 255], 
+            "display_bgr":[255,0,0],   
+            "jet_number": 0
+	},
+	{
+            "name":"grey",
+            "lowerhsv":[  0,  11, 150],  
+            "upperhsv":[255,  50, 255], 
+            "display_bgr":[200, 200, 200],   
+            "jet_number": 0
+	}
+]	

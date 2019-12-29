@@ -27,6 +27,7 @@ from picamera.array import PiRGBArray
 import time
 from datetime import datetime
 import os
+import json
 # todo: lintme
 
 # GPIO Imports
@@ -41,6 +42,7 @@ SHOW_OVERLAY = True
 COLOR_COLUMN_WIDTH=10
 OUTPUT_VIDEO = False
 VIDEO_NAME = "output.avi"
+LEGO_CONFIG_NAME = "legos.config.json"
 
 # setup GPIO (https://pythonhosted.org/RPIO/)
 VALVE_PIN=18
@@ -107,99 +109,20 @@ if(SHOW_OVERLAY):
 # Define legos we want to recognize
 # todo: move lego configurations over to a json file, or separate module
 legos = []
-#Brown
-legos.append(
-        Lego(
-            name='brown',
-            lowerhsv=[  0, 140, 140], # lower HSV threshold
-            upperhsv=[ 10, 255, 255], # upper HSV threshold
-            display_bgr=(0, 25, 51),   # display color
-            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
-            jet_number = 0
+with open('legos.config.json') as json_file:
+    config = json.load(json_file)
+    for lego_config in config:
+        print(lego_config)
+        legos.append(
+            Lego(
+                name=lego_config["name"],
+                lowerhsv=lego_config["lowerhsv"], # lower HSV threshold
+                upperhsv=lego_config["upperhsv"], # upper HSV threshold
+                display_bgr=lego_config["display_bgr"],   # display color
+                recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
+                jet_number=lego_config["jet_number"],
             )
         )
-
-# RED
-legos.append(
-        Lego(
-            name='red',
-            lowerhsv=[169,  90, 140],  # lower HSV threshold
-            upperhsv=[199, 255, 255],  # upper HSV threshold
-            display_bgr=(0, 0, 255),    # bgr display color
-            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
-            jet_number = 0
-            )
-        )
-# YELLOW
-legos.append(
-        Lego(
-            name='yellow',
-            lowerhsv=[ 28,  75, 140], # force low
-            upperhsv=[ 35, 240, 255], # force high 
-            display_bgr=(0,255,255),      # bgr display color
-            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
-            jet_number = 0
-            
-            )
-        )
-# Orange 
-legos.append(
-        Lego(
-            name='orange',
-            lowerhsv=[ 15,  75, 140], # force low
-            upperhsv=[ 27, 240, 255], # force high 
-            display_bgr=(0,165,255),      # bgr display color
-            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
-            jet_number = 0
-            )
-        )
-
-# GREEN
-legos.append(
-        Lego(
-            name='green',
-            lowerhsv=[ 60,  50, 100], # force low
-            upperhsv=[ 75, 255, 255], # force high 
-            display_bgr=(0,255,0),        # bgr display color
-            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
-            jet_number = 0
-            )
-        )
-# WHITE
-legos.append(
-        Lego(
-            name='white',
-            lowerhsv=[   0,  0, 150],  # force low
-            upperhsv=[ 255, 10, 255], # force high 
-            display_bgr=(255,255,255),   # bgr display color
-            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
-            jet_number = 0
-            )
-        )
-# Blue
-legos.append(
-        Lego(
-            name='blue',
-            lowerhsv=[ 93,  30, 100],  # force low
-            upperhsv=[103, 255, 255], # force high 
-            display_bgr=(255,0,0),   # bgr display color
-            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
-            jet_number = 0
-            )
-        )
-
-# Grey
-legos.append(
-        Lego(
-            name='grey',
-            lowerhsv=[  0,  11, 150],  # force low
-            upperhsv=[255,  50, 255], # force high 
-            display_bgr=(200, 200, 200),   # bgr display color
-            recognition_box=[ (XMIN,YMIN),(XMAX,YMAX) ],
-            jet_number = 0
-            )
-        )
-
 
 # Run the camera
 with PiCamera(
