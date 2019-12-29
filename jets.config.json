@@ -1,7 +1,27 @@
 [
 	{
 		"id":0,
-		"bounding_box_corners":[[36, 96],[96, 121]],
+		"bounding_box_corners":[[30, 0],[90, 30]],
+		"gpio_pin":18
+	},
+	{
+		"id":1,
+		"bounding_box_corners":[[30, 31],[90, 61]],
+		"gpio_pin":18
+	},
+	{
+		"id":2,
+		"bounding_box_corners":[[30, 62],[90, 92]],
+		"gpio_pin":18
+	},
+	{
+		"id":3,
+		"bounding_box_corners":[[30, 93],[90, 123]],
+		"gpio_pin":18
+	},
+	{
+		"id":4,
+		"bounding_box_corners":[[30, 124],[90, 154]],
 		"gpio_pin":18
 	}
 ]

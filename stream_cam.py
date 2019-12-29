@@ -120,7 +120,7 @@ if SHOW_OVERLAY:
     cv2.resizeWindow(WINDOW_NAME, 800, 800)
 
 # Load jets we want to use
-jets=[]
+jets = []
 with open('jets.config.json') as json_file:
     jets = json.load(json_file)
 
@@ -130,12 +130,17 @@ legos = []
 with open('legos.config.json') as json_file:
     config = json.load(json_file)
     for lego_config in config:
-        legos.append(
-            Lego(
-                lconfig=lego_config,
-                recognition_box=jets[lego_config["jet_number"]]["bounding_box_corners"],
+        if((lego_config["jet_number"] >= 0) and
+           (lego_config["jet_number"] < len(jets))):
+            legos.append(
+                Lego(
+                    lconfig=lego_config,
+                    recognition_box=jets[lego_config["jet_number"]]["bounding_box_corners"],
+                )
             )
-        )
+        else:
+            legoname = lego_config["name"]
+            print(f"Lego color {legoname} disabled")
 
 # Run the camera
 with PiCamera(
@@ -204,40 +209,27 @@ with PiCamera(
         print(print_string)
 
 
-        # If the total number of non-background pixels are below a certain threshold
-        #  do nothing
-
-        # If the total number of non-background pixels are above a certain threshold
-        #  I think I have a part, so pick the part's color based on the dominant color
-        #  I see.  This should help when I have multi-colored parts.
-        detection_name = ""
-        detection_color = (0, 0, 0)
-        if all_pixel_counts > PIXEL_THRESHOLD:
-            GPIO.output(VALVE_PIN, GPIO.LOW)
-            max_pixels = 0
-            for lego in legos:
-                if lego.pixel_count > max_pixels:
-                    max_pixels = lego.pixel_count
-                    detection_name = lego.name
-                    detection_color = lego.display_bgr
-            print(f"{detection_name} RECOGNIZED! {max_pixels} pixels")
-        else:
-            GPIO.output(VALVE_PIN, GPIO.HIGH)
-
-        if SHOW_BOX:
-            cv2.rectangle(image, (YMIN, XMIN), (YMAX, XMAX), (0, 0, 0), 1)
+        for lego in legos:
+            yxmin = (jets[lego.jet_number]["bounding_box_corners"][0][1],
+                     jets[lego.jet_number]["bounding_box_corners"][0][0])
+            yxmax = (jets[lego.jet_number]["bounding_box_corners"][1][1],
+                     jets[lego.jet_number]["bounding_box_corners"][1][0])
+            if lego.pixel_count > PIXEL_THRESHOLD:
+                GPIO.output(jets[lego.jet_number]["gpio_pin"], GPIO.LOW)
+                print(f"{lego.name} RECOGNIZED! {lego.pixel_count} pixels")
+                if SHOW_BOX:
+                    cv2.rectangle(image, yxmin, yxmax, lego.display_bgr, 1)
+            else:
+                GPIO.output(jets[lego.jet_number]["gpio_pin"], GPIO.HIGH)
+                if SHOW_BOX:
+                    cv2.rectangle(image, yxmin, yxmax, (0, 0, 0), 1)
 
         if SHOW_OVERLAY:
             for lego in legos:
-                image[lego.recognition_indices[0]+XMIN,
-                      lego.recognition_indices[1]+YMIN] = lego.display_bgr
-          #  if(detection_name != ""):
-            cv2.putText(image, f"{detection_name}", (2, 10),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5,  # size multiplier
-                        detection_color,
-                        1,     # thickness
-                        False)
+                image[lego.recognition_indices[0]+
+                      jets[lego.jet_number]["bounding_box_corners"][0][0],
+                      lego.recognition_indices[1]+
+                      jets[lego.jet_number]["bounding_box_corners"][0][1]] = lego.display_bgr
             cv2.waitKey(1)
             cv2.imshow(WINDOW_NAME, image)
 
