@@ -119,6 +119,12 @@ if SHOW_OVERLAY:
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
     cv2.resizeWindow(WINDOW_NAME, 800, 800)
 
+# Load jets we want to use
+jets=[]
+with open('jets.config.json') as json_file:
+    jets = json.load(json_file)
+
+
 # Load legos we want to recognize
 legos = []
 with open('legos.config.json') as json_file:
@@ -127,15 +133,9 @@ with open('legos.config.json') as json_file:
         legos.append(
             Lego(
                 lconfig=lego_config,
-                recognition_box=[(XMIN, YMIN), (XMAX, YMAX)],
+                recognition_box=jets[lego_config["jet_number"]]["bounding_box_corners"],
             )
         )
-
-# Load jets we want to use
-jets=[]
-with open('jets.config.json') as json_file:
-    jets = json.load(json_file)
-
 
 # Run the camera
 with PiCamera(
