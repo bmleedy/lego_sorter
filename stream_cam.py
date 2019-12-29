@@ -3,6 +3,20 @@
 # Camera docs: https://picamera.readthedocs.io/en/release-1.13/api_camera.html#piresolution
 # things I can set myself, AWB, Brightness, crop, exposure_mode, exposure_speed,iso (sensitivity), overlays, preview_alpha, preview_window, saturation, shutter_speed, 
 # thought for future enhancement: at start time, calibrate against a background image.  Possibly only evaluate pixels which deviate significantly in hue from the original background image.
+# Thoughts on controlling the air valves:
+#  I'm going to take the simple approach first, and hopefully it's sufficient:
+#    1. Detect different colors in zones in front of their respective valves
+#    2. If enough of the first color is detected, puff it into that color's bin
+#    3. Otherwise, let it ride through as many detection zones as necessary until it's detected or falls off the track
+#  Upsides:
+#    1. It's dead simple and reactive.  No state needed to manage
+#    2. No timing tuning needed for detect-then-wait method (source of failure)
+#    3. No tracking needed (source of failure/flakiness)
+#    4. Less memory/CPU intensive
+#
+#  Downsides:
+#    1. A multi-color part could slip past without enough "density" of any one color
+#    2. More detection zones means more potential variation in the lighting - same part could look yellow in one zone and orange in the next, causing misses
 
 import numpy as np
 
@@ -63,7 +77,10 @@ class Lego:
         self.recognition_box = recognition_box
         self.jet_number = jet_number
 
-    def recognize_at(self, image):
+    def recognize_at(self, image, box=None):
+        if (box == None):
+            box=self.recognition_box
+
         # Super simple approach:
         # inside a specific box, count the number of pixels I think are each color 
         self.recognition_mask = cv2.inRange(
@@ -75,8 +92,8 @@ class Lego:
         # (making a trade-off here because I'm doing recognition on the whole image, 
         #    then only paring down here)
         self.recognition_indices = np.where(
-                self.recognition_mask[self.recognition_box[0][0]:self.recognition_box[1][0], # XMIN:XMAX 
-                    self.recognition_box[0][1]:self.recognition_box[1][1]] > 0) # YMIN: YMAX
+                self.recognition_mask[box[0][0]:box[1][0], # XMIN:XMAX 
+                    box[0][1]:box[1][1]] > 0) # YMIN: YMAX
 
         # todo: we should be able to filter out less-contiguous pixels (this would be a particle filter?)
         self.pixel_count = self.recognition_indices[0].size
@@ -88,7 +105,7 @@ if(SHOW_OVERLAY):
     cv2.resizeWindow(WINDOW_NAME, 800,800)
 
 # Define legos we want to recognize
-
+# todo: move lego configurations over to a json file, or separate module
 legos = []
 #Brown
 legos.append(
